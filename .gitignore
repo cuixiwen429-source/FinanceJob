@@ -29,3 +29,4 @@ data/eml_drafts/
 dashboard/node_modules/
 dashboard/.next/
 dashboard/out/
+dashboard/dist/
