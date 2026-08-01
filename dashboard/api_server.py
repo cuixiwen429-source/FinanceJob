@@ -80,10 +80,11 @@ class APIHandler(BaseHTTPRequestHandler):
 
         for qk, col in FILTER_COLUMNS.items():
             if qk in qs and qs[qk]:
-                values = qs[qk].split(",")
-                placeholders = ",".join(["?" for _ in values])
-                conditions.append(f"{col} IN ({placeholders})")
-                params.extend(values)
+                keywords = [v.strip() for v in qs[qk].split(",") if v.strip()]
+                if keywords:
+                    like_clauses = " OR ".join([f"{col} LIKE ?" for _ in keywords])
+                    conditions.append(f"({like_clauses})")
+                    params.extend([f"%{k}%" for k in keywords])
 
         if "remote" in qs:
             conditions.append("is_remote = 1")

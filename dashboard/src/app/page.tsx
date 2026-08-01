@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
-  Search, MapPin, Briefcase, TrendingUp, Star, X, Sparkles,
-  ChevronLeft, ChevronRight, Loader2, ExternalLink, Filter, SlidersHorizontal,
+  Search, MapPin, Briefcase, TrendingUp, X, Sparkles,
+  ChevronLeft, ChevronRight, Loader2, ExternalLink, SlidersHorizontal,
 } from "lucide-react";
-import { API, fetchJSON, Job, Stats, FilterOptions, AiAnalysis, decisionBadge, scoreColor } from "@/lib/api";
+import { API, fetchJSON, Job, Stats, AiAnalysis, decisionBadge, scoreColor } from "@/lib/api";
 
 const PAGE_SIZE = 24;
 const SORT_OPTIONS: Record<string, string> = {
@@ -21,19 +21,20 @@ export default function HomePage() {
   const [stats, setStats] = useState<Stats>({ total: 0, new: 0, scored: 0, applied: 0, replied: 0, interview: 0, offer: 0, strong_recommend: 0, recommend: 0 });
   const [jobs, setJobs] = useState<Job[]>([]);
   const [total, setTotal] = useState(0);
-  const [filters, setFilters] = useState<FilterOptions>({ industry: [], company_type: [], location: [], decision: [] });
   const [loading, setLoading] = useState(true);
 
-  // Filters
+  // Filters — comma-separated fuzzy keywords
   const [search, setSearch] = useState("");
   const [selIndustry, setSelIndustry] = useState("");
   const [selCompanyType, setSelCompanyType] = useState("");
   const [selLocation, setSelLocation] = useState("");
-  const [selDecision, setSelDecision] = useState("");
+  const [selDecision, setSelDecision] = useState<string[]>([]);
   const [remoteOnly, setRemoteOnly] = useState(false);
   const [minScore, setMinScore] = useState("");
   const [sort, setSort] = useState("composite_score DESC");
   const [page, setPage] = useState(0);
+
+  const DECISIONS = ["强烈推荐", "推荐投递", "可投递", "建议跳过"];
 
   // Detail panel
   const [selected, setSelected] = useState<Job | null>(null);
@@ -45,12 +46,7 @@ export default function HomePage() {
   const [showFilters, setShowFilters] = useState(false);
 
   const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [s, f] = await Promise.all([fetchJSON("/stats"), fetchJSON("/filters")]);
-      setStats(s); setFilters(f);
-    } catch {}
-    setLoading(false);
+    try { setStats(await fetchJSON("/stats")); } catch {}
   }, []);
 
   const loadJobs = useCallback(async () => {
@@ -61,7 +57,7 @@ export default function HomePage() {
       if (selIndustry) params.set("industry", selIndustry);
       if (selCompanyType) params.set("company_type", selCompanyType);
       if (selLocation) params.set("location", selLocation);
-      if (selDecision) params.set("decision", selDecision);
+      if (selDecision.length) params.set("decision", selDecision.join(","));
       if (remoteOnly) params.set("remote", "1");
       if (minScore) params.set("min_score", minScore);
       params.set("order", sort);
@@ -96,9 +92,9 @@ export default function HomePage() {
 
   const clearFilters = () => {
     setSearch(""); setSelIndustry(""); setSelCompanyType(""); setSelLocation("");
-    setSelDecision(""); setRemoteOnly(false); setMinScore(""); setSort("composite_score DESC"); setPage(0);
+    setSelDecision([]); setRemoteOnly(false); setMinScore(""); setSort("composite_score DESC"); setPage(0);
   };
-  const hasFilters = search || selIndustry || selCompanyType || selLocation || selDecision || remoteOnly || minScore;
+  const hasFilters = search || selIndustry || selCompanyType || selLocation || selDecision.length || remoteOnly || minScore;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -128,7 +124,7 @@ export default function HomePage() {
         <div className="max-w-[1440px] mx-auto px-4 py-2.5">
           <div className="flex items-center gap-2 flex-wrap">
             {/* Search */}
-            <div className="relative flex-1 min-w-[180px] max-w-[300px]">
+            <div className="relative flex-1 min-w-[160px] max-w-[280px]">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 value={search} onChange={e => { setSearch(e.target.value); setPage(0); }}
@@ -144,14 +140,38 @@ export default function HomePage() {
             </button>
 
             <div className={`${showFilters ? 'flex' : 'hidden'} md:flex items-center gap-2 flex-wrap`}>
-              <SelectField value={selIndustry} onChange={v => { setSelIndustry(v); setPage(0); }}
-                           options={filters.industry} placeholder="行业" />
-              <SelectField value={selCompanyType} onChange={v => { setSelCompanyType(v); setPage(0); }}
-                           options={filters.company_type} placeholder="公司类型" />
-              <SelectField value={selLocation} onChange={v => { setSelLocation(v); setPage(0); }}
-                           options={filters.location} placeholder="地点" />
-              <SelectField value={selDecision} onChange={v => { setSelDecision(v); setPage(0); }}
-                           options={filters.decision} placeholder="推荐等级" />
+              {/* Industry — fuzzy keyword input */}
+              <input
+                value={selIndustry} onChange={e => { setSelIndustry(e.target.value); setPage(0); }}
+                placeholder="行业（逗号分隔）"
+                className="w-36 px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
+              />
+              {/* Company type — fuzzy keyword input */}
+              <input
+                value={selCompanyType} onChange={e => { setSelCompanyType(e.target.value); setPage(0); }}
+                placeholder="公司类型（逗号分隔）"
+                className="w-40 px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
+              />
+              {/* Location — fuzzy keyword input */}
+              <input
+                value={selLocation} onChange={e => { setSelLocation(e.target.value); setPage(0); }}
+                placeholder="地点（逗号分隔）"
+                className="w-36 px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
+              />
+
+              {/* Decision — clickable multi-select chips */}
+              <div className="flex items-center gap-0.5">
+                {DECISIONS.map(d => (
+                  <button key={d} onClick={() => {
+                    setSelDecision(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
+                    setPage(0);
+                  }}
+                  className={`text-[10px] px-1.5 py-1 rounded-full border transition-colors whitespace-nowrap
+                    ${selDecision.includes(d) ? 'bg-blue-100 border-blue-400 text-blue-700' : 'bg-white text-slate-500 hover:bg-slate-50'}`}>
+                    {d}
+                  </button>
+                ))}
+              </div>
 
               <label className={`flex items-center gap-1.5 text-xs cursor-pointer select-none px-2 py-1.5 border rounded-lg
                                 ${remoteOnly ? 'bg-blue-50 border-blue-300' : 'hover:bg-slate-50'}`}>
@@ -172,7 +192,7 @@ export default function HomePage() {
               </select>
 
               {hasFilters && (
-                <button onClick={clearFilters} className="text-xs text-red-500 hover:underline px-2 py-1.5">
+                <button onClick={clearFilters} className="text-xs text-red-500 hover:underline px-2 py-1.5 whitespace-nowrap">
                   清除筛选
                 </button>
               )}
@@ -374,18 +394,6 @@ function StatBadge({ label, value, color }: { label: string; value: number; colo
       <div className={`text-base font-bold ${color}`}>{value}</div>
       <div className="text-[10px] text-slate-400">{label}</div>
     </div>
-  );
-}
-
-function SelectField({ value, onChange, options, placeholder }: {
-  value: string; onChange: (v: string) => void; options: string[]; placeholder: string;
-}) {
-  return (
-    <select value={value} onChange={e => onChange(e.target.value)}
-            className="text-xs px-2 py-1.5 border rounded-lg bg-white text-slate-600 max-w-[120px] truncate">
-      <option value="">{placeholder}</option>
-      {options.map(o => <option key={o} value={o}>{o}</option>)}
-    </select>
   );
 }
 
