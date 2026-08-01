@@ -66,8 +66,35 @@ python main.py status
 - `data/tencent_docs_jobs_raw.json`: 腾讯文档「金融-日常实习表」本地缓存（4135 条原始 JD）。
 - 新增岗位可通过 `scraper/platforms/tencent_docs.py` 从腾讯文档 URL 实时拉取。
 
+## 在线部署
+
+### 一键部署到 Render（推荐）
+
+项目已配置好 Dockerfile 与 `render.yaml`，点击下方按钮即可免费部署：
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/cuixiwen429-source/FinanceJob)
+
+部署完成后：
+- Render 会自动构建 Next.js 前端 + Python API 服务
+- 首次启动会从 `data/tencent_docs_jobs_raw.json` 自动导入 4000+ 条 JD
+- 通过 Render 给出的 `https://financejob-dashboard-xxx.onrender.com` 即可访问看板
+- 免费实例会在 15 分钟无访问后休眠，首次打开可能需要 30 秒冷启动
+
+### 本地启动 Web 看板
+
+```bash
+cd dashboard
+npm install
+npm run build      # 构建静态文件到 dashboard/dist
+cd ..
+python scripts/seed_and_serve.py
+```
+
+访问 http://localhost:5175。
+
 ## 注意事项
 
 - 系统优先读取 `data/resume_base.md` 作为简历基础；不存在时使用内置默认简历。
 - 邮件发送前请确认 `.env` 中邮箱授权码正确；未配置时可用 `python main.py send` 生成 `.eml` 草稿。
 - Web 看板依赖 `dashboard/node_modules`，首次使用前需在 `dashboard/` 下运行 `npm install`。
+- 仓库为公开仓库，个人简历信息（姓名、学校等）已随代码提交，如需保密请改为 Private Repo。
