@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Search, MapPin, Calendar, Mail, ExternalLink } from "lucide-react";
-import { cn } from "@/lib/api";
+import { cn, API_BASE as API } from "@/lib/api";
 
 interface Job { id:string;platform:string;title:string;company:string;location:string;is_remote:boolean;salary_raw:string;recruiter_email:string;composite_score:number;rank:number;decision:string;job_match_score:number;industry_match_score:number;salary_score:number;career_dev_score:number;status:string;scraped_at:string;jd_clean:string;apply_url:string; }
 
-const API = "/api";
 
 export default function JobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);

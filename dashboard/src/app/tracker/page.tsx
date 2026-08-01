@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { cn } from "@/lib/api";
+import { cn, API_BASE as API } from "@/lib/api";
 
-const API = "/api";
 const COLS = [{k:"new",l:"🆕 新发现",c:"bg-purple-50 border-purple-200"},{k:"scored",l:"📊 已评分",c:"bg-blue-50 border-blue-200"},{k:"resume_ready",l:"📝 简历就绪",c:"bg-cyan-50 border-cyan-200"},{k:"applied",l:"📨 已投递",c:"bg-emerald-50 border-emerald-200"},{k:"replied",l:"💬 已回复",c:"bg-amber-50 border-amber-200"},{k:"interview",l:"🎤 面试中",c:"bg-orange-50 border-orange-200"},{k:"offer",l:"🎉 Offer",c:"bg-rose-50 border-rose-200"}];
 
 interface Job { id:string;company:string;title:string;composite_score:number;decision:string;status:string; }

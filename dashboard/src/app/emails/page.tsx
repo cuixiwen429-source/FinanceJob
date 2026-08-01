@@ -5,9 +5,8 @@ import {
   Mail, Send, FileText, CheckCircle, XCircle, Clock, Link, Shield,
   RefreshCw, Settings, LogIn, AlertTriangle, Trash2, Copy, ExternalLink,
 } from "lucide-react";
-import { cn } from "@/lib/api";
+import { cn, API_BASE as API } from "@/lib/api";
 
-const API = "/api";
 
 // ── Types ──
 interface EmailConfig {

@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Star, AlertTriangle, ThumbsUp, MessageCircle, Globe } from "lucide-react";
-import { cn } from "@/lib/api";
-
-const API = "/api";
+import { cn, API_BASE as API } from "@/lib/api";
 
 interface Rep { company:string; kanzhun_score:number|null; maimai_sentiment:number|null; niuke_positive_ratio:number|null; zhihu_summary:string|null; xiaohongshu_summary:string|null; glassdoor_score:number|null; overall_sentiment:number; risk_flags:string|string[]; last_updated:string; }
 
@@ -29,7 +27,8 @@ export default function ReputationPage() {
           xiaohongshu_summary: `实习生评价: ${Math.random()>0.5?"能学到很多东西":"加班情况因人而异"}。`,
           overall_sentiment: -0.2+Math.random()*1.0,
           risk_flags: Math.random()>0.7?["加班较多"]:[],
-          last_updated: new Date().toISOString()
+          last_updated: new Date().toISOString(),
+          glassdoor_score: null
         }));
         setReps(sampleReps);
       }).catch(()=>{});

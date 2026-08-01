@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Building2, ExternalLink, Search } from "lucide-react";
-
-const API = "/api";
+import { API_BASE as API } from "@/lib/api";
 
 interface Company { name:string; company_type:string; career_url:string; ats_type:string; is_active:number; }
 

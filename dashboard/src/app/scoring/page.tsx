@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
-import { cn } from "@/lib/api";
+import { cn, API_BASE as API } from "@/lib/api";
 
 interface Job { id:string;company:string;title:string;job_match_score:number;industry_match_score:number;salary_score:number;career_dev_score:number;composite_score:number;rank:number;decision:string; }
 
-const API = "/api";
 
 export default function ScoringPage() {
   const [jobs, setJobs] = useState<Job[]>([]);

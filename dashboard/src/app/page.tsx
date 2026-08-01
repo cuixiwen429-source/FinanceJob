@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { Briefcase, Target, Send, Trophy, TrendingUp, Star, Mail, Clock, MapPin } from "lucide-react";
-import { cn } from "@/lib/api";
+import { cn, API_BASE as API } from "@/lib/api";
 
 interface Stats { total:number; new:number; scored:number; applied:number; replied:number; interview:number; offer:number; strong_recommend:number; recommend:number; }
 interface Job { id:string; company:string; title:string; composite_score:number; decision:string; rank:number; location:string; is_remote:boolean; }
 
-const API = "/api";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats>({ total:0,new:0,scored:0,applied:0,replied:0,interview:0,offer:0,strong_recommend:0,recommend:0 });

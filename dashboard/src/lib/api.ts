@@ -7,7 +7,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const API_BASE = "/api";
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5175/api";
 
 export interface JobData {
   id: string;
