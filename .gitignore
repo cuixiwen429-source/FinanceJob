@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+*.log
+
+# Virtual environments
+venv/
+env/
+.env
+
+# macOS resource forks / AppleDouble files
+._*
+.DS_Store
+
+# Database & generated data
+shared/*.db
+shared/*.db-shm
+shared/*.db-wal
+data/resumes/
+data/eml_drafts/
+
+# IDE
+.idea/
+.vscode/
+
+# Node / Next.js
+dashboard/node_modules/
+dashboard/.next/
+dashboard/out/

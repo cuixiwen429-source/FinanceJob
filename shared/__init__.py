@@ -1,0 +1,1 @@
+"""FinanceJob shared module."""

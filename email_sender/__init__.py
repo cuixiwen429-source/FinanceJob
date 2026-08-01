@@ -1,0 +1,1 @@
+"""FinanceJob email sender engine."""

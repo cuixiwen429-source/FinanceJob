@@ -1,0 +1,46 @@
+# FinanceJob 用户配置文件
+# 2028届 华东师范大学 金融硕士 — 崔曦文
+
+name: "崔曦文"
+graduation_year: 2028
+school: "华东师范大学"
+degree: "金融硕士"
+
+# 寒暑假目标城市
+target_cities_break:
+  - "深圳"
+  - "上海"
+
+# 在校期间目标城市（远程优先）
+target_cities_semester:
+  - "上海"
+
+remote_preferred: true
+
+# 金融方向优先
+finance_directions:
+  - "行研/证券研究"
+  - "投资银行IBD"
+  - "PE/VC"
+  - "战投/战略投资"
+  - "量化交易"
+
+# 黑名单关键词
+blacklist_keywords:
+  - "外包"
+  - "外派"
+  - "单休"
+  - "大小周"
+  - "996"
+  - "销售"
+  - "客服"
+  - "催收"
+  - "保险代理"
+  - "管培生"      # 避免泛管培岗
+
+blacklist_companies: []
+
+# 评分阈值
+score_strong_recommend: 75.0
+score_recommend: 60.0
+score_consider: 45.0
