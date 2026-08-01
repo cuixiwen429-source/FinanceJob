@@ -33,7 +33,7 @@ def seed_if_empty():
         from scraper.platforms.tencent_docs import TencentDocsImporter
 
         importer = TencentDocsImporter(db)
-        result = importer.import_from_local_cache(str(raw_path))
+        result = importer.import_from_local_cache(raw_path)
         print(f"[seed] import result: {result}")
     except Exception as e:
         print(f"[seed] import failed: {e}")

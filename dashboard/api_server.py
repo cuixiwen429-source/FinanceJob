@@ -244,8 +244,8 @@ def main():
     APIHandler.db = db
     port = int(os.getenv("PORT", "5175"))
     server = HTTPServer(("0.0.0.0", port), APIHandler)
-    print(f"🚀 FinanceJob API → http://0.0.0.0:{port}")
-    print(f"   QQ邮箱: {'已连接' if os.getenv('EMAIL_AUTH_CODE') else '未配置'}")
+    print(f"FinanceJob API -> http://0.0.0.0:{port}")
+    print(f"   QQ: {'connected' if os.getenv('EMAIL_AUTH_CODE') else 'not configured'}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
