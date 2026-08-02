@@ -64,6 +64,15 @@ class FinanceJobDB:
             reputation TEXT,
             reasoning TEXT DEFAULT '',
 
+            -- v3: track & tier
+            track TEXT DEFAULT '',              -- 主赛道ID (ecm_dcm/ibd/research/...)
+            tracks TEXT DEFAULT '[]',           -- 所有匹配赛道(JSON数组，支持多选)
+            track_label TEXT DEFAULT '',        -- 赛道中文名
+            company_tier TEXT DEFAULT '',       -- 公司层级 S/A/B/C/U
+            company_tier_label TEXT DEFAULT '', -- 层级中文名
+            company_tier_note TEXT DEFAULT '',  -- 层级判定备注
+            ai_reasoning TEXT DEFAULT '',       -- AI 个性化分析（含用户画像）
+
             -- resume
             tailored_resume_path TEXT DEFAULT '',
             cover_letter TEXT DEFAULT '',
@@ -83,6 +92,8 @@ class FinanceJobDB:
         CREATE INDEX IF NOT EXISTS idx_jobs_platform ON jobs(platform);
         CREATE INDEX IF NOT EXISTS idx_jobs_company_type ON jobs(company_type);
         CREATE INDEX IF NOT EXISTS idx_jobs_is_remote ON jobs(is_remote);
+        CREATE INDEX IF NOT EXISTS idx_jobs_track ON jobs(track);
+        CREATE INDEX IF NOT EXISTS idx_jobs_company_tier ON jobs(company_tier);
         CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_dedup ON jobs(platform, company, title);
 
         CREATE TABLE IF NOT EXISTS company_reputation (
@@ -162,7 +173,7 @@ class FinanceJobDB:
             return None
 
     def update_scores(self, job_id: str, score_data: dict):
-        """更新评分数据"""
+        """更新评分数据（v3：包含 track/tier 字段）"""
         self.conn.execute("""
             UPDATE jobs SET
                 composite_score = ?, rank = ?, percentile = ?, decision = ?,
@@ -171,6 +182,9 @@ class FinanceJobDB:
                 salary_score = ?, salary_detail = ?,
                 career_dev_score = ?, career_dev_detail = ?,
                 adjustments = ?, reputation = ?, reasoning = ?,
+                track = ?, tracks = ?, track_label = ?,
+                company_tier = ?, company_tier_label = ?, company_tier_note = ?,
+                ai_reasoning = ?,
                 status = 'scored', updated_at = ?
             WHERE id = ?
         """, (
@@ -189,6 +203,13 @@ class FinanceJobDB:
             json.dumps(score_data.get("adjustments", []), ensure_ascii=False),
             json.dumps(score_data.get("reputation"), ensure_ascii=False) if score_data.get("reputation") else None,
             score_data.get("reasoning", ""),
+            score_data.get("track", ""),
+            json.dumps(score_data.get("tracks", []), ensure_ascii=False),
+            score_data.get("track_label", ""),
+            score_data.get("company_tier", ""),
+            score_data.get("company_tier_label", ""),
+            score_data.get("company_tier_note", ""),
+            score_data.get("ai_reasoning", ""),
             datetime.now().isoformat(),
             job_id,
         ))
@@ -305,7 +326,7 @@ class FinanceJobDB:
     # ── 统计 ──────────────────────────────────────────────
 
     def get_stats(self) -> dict:
-        """获取仪表盘统计数据"""
+        """获取仪表盘统计数据（v3：包含赛道和tier统计）"""
         total = self.conn.execute("SELECT COUNT(*) as c FROM jobs").fetchone()["c"]
         new_count = self.conn.execute("SELECT COUNT(*) as c FROM jobs WHERE status='new'").fetchone()["c"]
         scored = self.conn.execute("SELECT COUNT(*) as c FROM jobs WHERE status='scored'").fetchone()["c"]
@@ -314,15 +335,79 @@ class FinanceJobDB:
         interview = self.conn.execute("SELECT COUNT(*) as c FROM jobs WHERE status='interview'").fetchone()["c"]
         offer = self.conn.execute("SELECT COUNT(*) as c FROM jobs WHERE status='offer'").fetchone()["c"]
 
-        strong = self.conn.execute("SELECT COUNT(*) as c FROM jobs WHERE decision='强烈推荐'").fetchone()["c"]
-        recommend = self.conn.execute("SELECT COUNT(*) as c FROM jobs WHERE decision='推荐投递'").fetchone()["c"]
+        # v3: decision 改为四档
+        priority = self.conn.execute(
+            "SELECT COUNT(*) as c FROM jobs WHERE decision='优先投'"
+        ).fetchone()["c"]
+        worth = self.conn.execute(
+            "SELECT COUNT(*) as c FROM jobs WHERE decision='值得投'"
+        ).fetchone()["c"]
+        consider = self.conn.execute(
+            "SELECT COUNT(*) as c FROM jobs WHERE decision='可考虑'"
+        ).fetchone()["c"]
+        skip = self.conn.execute(
+            "SELECT COUNT(*) as c FROM jobs WHERE decision='不推荐'"
+        ).fetchone()["c"]
+
+        # 兼容旧标签
+        strong = self.conn.execute(
+            "SELECT COUNT(*) as c FROM jobs WHERE decision='强烈推荐'"
+        ).fetchone()["c"]
+        recommend = self.conn.execute(
+            "SELECT COUNT(*) as c FROM jobs WHERE decision='推荐投递'"
+        ).fetchone()["c"]
+
+        # track 分布
+        track_rows = self.conn.execute(
+            "SELECT track, track_label, COUNT(*) as c FROM jobs WHERE track != '' GROUP BY track ORDER BY c DESC"
+        ).fetchall()
+        track_dist = {r["track_label"] or r["track"]: r["c"] for r in track_rows}
+
+        # tier 分布
+        tier_rows = self.conn.execute(
+            "SELECT company_tier, COUNT(*) as c FROM jobs WHERE company_tier != '' AND company_tier != 'U' GROUP BY company_tier ORDER BY company_tier"
+        ).fetchall()
+        tier_dist = {r["company_tier"]: r["c"] for r in tier_rows}
+        tier_unknown = self.conn.execute(
+            "SELECT COUNT(*) as c FROM jobs WHERE company_tier = 'U' OR company_tier = ''"
+        ).fetchone()["c"]
 
         return {
             "total": total, "new": new_count, "scored": scored,
             "applied": applied, "replied": replied, "interview": interview,
             "offer": offer,
+            "priority": priority, "worth": worth, "consider": consider, "skip": skip,
             "strong_recommend": strong, "recommend": recommend,
+            "track_distribution": track_dist,
+            "tier_S": tier_dist.get("S", 0),
+            "tier_A": tier_dist.get("A", 0),
+            "tier_B": tier_dist.get("B", 0),
+            "tier_C": tier_dist.get("C", 0),
+            "tier_unknown": tier_unknown,
         }
+
+    def migrate_v3_columns(self):
+        """v3 迁移：添加新字段到现有数据库"""
+        new_columns = [
+            ("track", "TEXT DEFAULT ''"),
+            ("tracks", "TEXT DEFAULT '[]'"),
+            ("track_label", "TEXT DEFAULT ''"),
+            ("company_tier", "TEXT DEFAULT ''"),
+            ("company_tier_label", "TEXT DEFAULT ''"),
+            ("company_tier_note", "TEXT DEFAULT ''"),
+            ("ai_reasoning", "TEXT DEFAULT ''"),
+        ]
+        for col_name, col_def in new_columns:
+            try:
+                self.conn.execute(f"ALTER TABLE jobs ADD COLUMN {col_name} {col_def}")
+            except Exception:
+                pass  # 列已存在则跳过
+
+        # 重建索引
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_track ON jobs(track)")
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_company_tier ON jobs(company_tier)")
+        self.conn.commit()
+        print("[DB] v3 迁移完成：已添加 track/company_tier 字段和索引")
 
     def close(self):
         self.conn.close()

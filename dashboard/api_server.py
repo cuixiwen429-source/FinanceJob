@@ -21,6 +21,12 @@ FILTER_COLUMNS = {
     "status": "status",
 }
 
+# v3: 新增 track 和 company_tier 多值筛选
+MULTI_VALUE_FILTERS = {
+    "track": "track",          # 多选，逗号分隔，精确匹配
+    "company_tier": "company_tier",  # 多选，逗号分隔，精确匹配
+}
+
 
 class APIHandler(BaseHTTPRequestHandler):
     db: FinanceJobDB = None
@@ -78,6 +84,7 @@ class APIHandler(BaseHTTPRequestHandler):
         conditions = []
         params = []
 
+        # 原有的 LIKE 模糊筛选
         for qk, col in FILTER_COLUMNS.items():
             if qk in qs and qs[qk]:
                 keywords = [v.strip() for v in qs[qk].split(",") if v.strip()]
@@ -85,6 +92,15 @@ class APIHandler(BaseHTTPRequestHandler):
                     like_clauses = " OR ".join([f"{col} LIKE ?" for _ in keywords])
                     conditions.append(f"({like_clauses})")
                     params.extend([f"%{k}%" for k in keywords])
+
+        # v3: track/company_tier 精确多选
+        for qk, col in MULTI_VALUE_FILTERS.items():
+            if qk in qs and qs[qk]:
+                values = [v.strip() for v in qs[qk].split(",") if v.strip()]
+                if values:
+                    placeholders = ",".join(["?"] * len(values))
+                    conditions.append(f"{col} IN ({placeholders})")
+                    params.extend(values)
 
         if "remote" in qs:
             conditions.append("is_remote = 1")
@@ -108,7 +124,8 @@ class APIHandler(BaseHTTPRequestHandler):
         order = qs.get("order", "composite_score DESC")
         allowed = {"composite_score DESC", "composite_score ASC", "salary_monthly_est DESC",
                    "scraped_at DESC", "company ASC", "job_match_score DESC",
-                   "industry_match_score DESC", "salary_score DESC", "career_dev_score DESC"}
+                   "industry_match_score DESC", "salary_score DESC", "career_dev_score DESC",
+                   "track ASC", "company_tier ASC", "track DESC", "company_tier DESC"}
         if order not in allowed:
             order = "composite_score DESC"
 
@@ -127,7 +144,7 @@ class APIHandler(BaseHTTPRequestHandler):
         }
 
     def _get_filter_options(self):
-        """Return distinct values for each filter column"""
+        """Return distinct values for each filter column (v3: 包含 track 和 company_tier)"""
         options = {}
         for key, col in FILTER_COLUMNS.items():
             rows = self.db.conn.execute(
@@ -138,6 +155,18 @@ class APIHandler(BaseHTTPRequestHandler):
             "SELECT DISTINCT location FROM jobs WHERE location != '' AND location IS NOT NULL ORDER BY location"
         ).fetchall()
         options["location"] = [r[0] for r in rows]
+
+        # v3: track 和 company_tier 选项
+        track_rows = self.db.conn.execute(
+            "SELECT DISTINCT track, track_label FROM jobs WHERE track != '' ORDER BY track"
+        ).fetchall()
+        options["track"] = [{"id": r[0], "label": r[1] or r[0]} for r in track_rows]
+
+        tier_rows = self.db.conn.execute(
+            "SELECT DISTINCT company_tier, company_tier_label FROM jobs WHERE company_tier != '' ORDER BY company_tier"
+        ).fetchall()
+        options["company_tier"] = [{"id": r[0], "label": r[1] or r[0]} for r in tier_rows]
+
         return options
 
     def _get_job_by_id(self, job_id):
@@ -200,14 +229,31 @@ class APIHandler(BaseHTTPRequestHandler):
         if not api_key:
             return {"error": "AI not configured (set DEEPSEEK_API_KEY in .env)"}
 
-        prompt = f"""你是一位资深金融职业导师。请分析以下实习岗位，用 JSON 格式返回（不要多余文字）：
+        # v3: 注入用户画像
+        try:
+            from shared.user_profile import get_profile
+            profile = get_profile()
+            user_context = profile.to_ai_context()
+        except Exception:
+            user_context = ""
 
+        prompt = f"""你是一位资深金融职业导师。请基于用户画像分析以下实习岗位，从崔曦文的个人背景出发给出建议。
+
+{user_context}
+
+---
 岗位：{job.get('title','')}
-公司：{job.get('company','')}
+公司：{job.get('company','')}（{job.get('company_tier_label','') or job.get('company_tier','')}机构）
+赛道：{job.get('track_label','') or job.get('track','')}
 行业：{job.get('industry','')}
 地点：{job.get('location','')}
 薪资：{job.get('salary_raw','')}
 JD：{job.get('jd_raw','')[:2000]}
+
+请从崔曦文的背景出发（水利工程本科 -> 华师金融硕士 + 长江证券资本市场部实习），分析：
+1. 这个岗位对他而言是否值得投递
+2. 他的背景在这个岗位上的优劣势
+3. 如果要投，准备重点是什么
 
 返回 JSON：
 {{
@@ -215,7 +261,7 @@ JD：{job.get('jd_raw','')[:2000]}
   "pros": ["优势1", "优势2", "优势3"],
   "cons": ["劣势1"],
   "advice": "2-3句话建议（是否值得投递、准备重点、面试注意事项）",
-  "salary_analysis": "薪资水平分析（偏高/偏低/正常，结合行业和地点）",
+  "salary_analysis": "薪资水平分析",
   "skill_gaps": ["需要补强的技能"],
   "company_brief": "公司一句话评价"
 }}
