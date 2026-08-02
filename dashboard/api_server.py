@@ -58,7 +58,7 @@ class APIHandler(BaseHTTPRequestHandler):
                     self._json(self._get_jobs_filtered())
                 elif path == "/api/filters":
                     self._json(self._get_filter_options())
-                elif path == "/health":
+                elif path == "/health" or path == "/api/health":
                     self._json({"status": "ok", "version": "2.0"})
                 else:
                     # /api/jobs/<id>
